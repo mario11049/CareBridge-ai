@@ -27,6 +27,7 @@ import { checkAnswerFaithfulness, validateReplySchema } from "@/lib/carebridge/a
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const TIMEOUT_MS = 25_000;
 

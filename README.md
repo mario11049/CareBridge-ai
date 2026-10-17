@@ -115,4 +115,4 @@ Live suite: `npx tsx scripts/live-probe.ts http://localhost:3000` — executed a
 
 ## Deploy notes
 
-Production build: `npm run build && npm start`. The template includes a Postgres/Drizzle setup from the starter, but CareBridge's demo features do not require the database. For live AI mode, set `GEMINI_API_KEY` in your deployment's environment variables (server-side).
+Production build: `npm run build && npm start`. CareBridge does not use a database. For live AI mode, set `GEMINI_API_KEY` in your deployment's environment variables (server-side).
