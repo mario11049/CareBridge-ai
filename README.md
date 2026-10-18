@@ -14,6 +14,8 @@ A hackathon prototype that turns hospital discharge summaries into clear, patien
 npm install
 npm run dev
 # open http://localhost:3000
+website url
+https://care-bridge-ai-xe2n.vercel.app/
 ```
 
 Demo mode is fully featured:
