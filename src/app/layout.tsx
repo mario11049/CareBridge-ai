@@ -1,10 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Inter, Newsreader, Noto_Sans_Telugu } from "next/font/google";
 import "./globals.css";
 import { CareBridgeProvider } from "@/lib/store";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import AssistantWidget from "@/components/assistant/AssistantWidget";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter-x", display: "swap" });
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-newsreader-x",
+  display: "swap",
+  axes: ["opsz"],
+});
+const telugu = Noto_Sans_Telugu({ subsets: ["telugu", "latin"], variable: "--font-telugu-x", display: "swap" });
 
 export const metadata: Metadata = {
   title: "CareBridge AI — Clear instructions. Safer recovery.",
@@ -20,15 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${inter.variable} ${newsreader.variable} ${telugu.variable}`}>
       <body className="min-h-screen antialiased">
         <CareBridgeProvider>
           <div className="no-print">

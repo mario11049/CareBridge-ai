@@ -35,13 +35,11 @@ interface StoreValue {
   lang: Lang;
   setLang: (l: Lang) => void;
   result: PipelineResult | null;
-  processDocument: (text: string, name: string, sampleId: string | null, mode?: "demo" | "live") => PipelineResult;
+  processDocument: (text: string, name: string, sampleId: string | null, mode?: "demo" | "live", providedExtraction?: Extraction) => PipelineResult;
   setPlan: (plan: CarePlan, report?: ValidationReport) => void;
   reset: () => void;
   judgeRuns: JudgeRun[];
   addJudgeRun: (r: JudgeRun) => void;
-  liveStatus: { kind: "idle" | "ok" | "unavailable" | "error"; message: string };
-  setLiveStatus: (s: { kind: "idle" | "ok" | "unavailable" | "error"; message: string }) => void;
 }
 
 const StoreCtx = createContext<StoreValue | null>(null);
@@ -51,22 +49,24 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
   const [lang, setLangState] = useState<Lang>("en");
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [judgeRuns, setJudgeRuns] = useState<JudgeRun[]>([]);
-  const [liveStatus, setLiveStatus] = useState<StoreValue["liveStatus"]>({ kind: "idle", message: "" });
 
-  // hydrate from localStorage
+  // hydrate from localStorage (scheduled — avoids synchronous setState inside the effect body)
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(LS_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as PersistedState & { result?: PipelineResult; judgeRuns?: JudgeRun[] };
-        setLangState(p.lang === "te" ? "te" : "en");
-        if (p.result) setResult(p.result);
-        if (Array.isArray(p.judgeRuns)) setJudgeRuns(p.judgeRuns.slice(0, 12));
+    const id = requestAnimationFrame(() => {
+      try {
+        const raw = window.localStorage.getItem(LS_KEY);
+        if (raw) {
+          const p = JSON.parse(raw) as PersistedState & { result?: PipelineResult; judgeRuns?: JudgeRun[] };
+          setLangState(p.lang === "te" ? "te" : "en");
+          if (p.result) setResult(p.result);
+          if (Array.isArray(p.judgeRuns)) setJudgeRuns(p.judgeRuns.slice(0, 12));
+        }
+      } catch {
+        /* corrupted state — start clean */
       }
-    } catch {
-      /* corrupted state — start clean */
-    }
-    setHydrated(true);
+      setHydrated(true);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const persist = useCallback((r: PipelineResult | null, l: Lang, runs: JudgeRun[]) => {
@@ -88,8 +88,11 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const processDocument = useCallback(
-    (text: string, name: string, sampleId: string | null, mode: "demo" | "live" = "demo"): PipelineResult => {
-      const extraction: Extraction = extractFromText(text);
+    (text: string, name: string, sampleId: string | null, mode: "demo" | "live" = "demo", providedExtraction?: Extraction): PipelineResult => {
+      // When a server-validated AI extraction is supplied, the deterministic
+      // pipeline still re-runs: the plan builder + faithfulness engine ALWAYS
+      // check what the model produced — nothing is displayed unvalidated.
+      const extraction: Extraction = providedExtraction ?? extractFromText(text);
       const plan: CarePlan = buildPlan(extraction);
       const report: ValidationReport = validatePlan(extraction, plan);
       const r: PipelineResult = {
@@ -134,7 +137,6 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
   const reset = useCallback(() => {
     setResult(null);
     setJudgeRuns([]);
-    setLiveStatus({ kind: "idle", message: "" });
     try {
       window.localStorage.removeItem(LS_KEY);
     } catch {
@@ -171,8 +173,8 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
   );
 
   const value = useMemo<StoreValue>(
-    () => ({ hydrated, lang, setLang, result, processDocument, setPlan, reset, judgeRuns, addJudgeRun, liveStatus, setLiveStatus }),
-    [hydrated, lang, setLang, result, processDocument, setPlan, reset, judgeRuns, addJudgeRun, liveStatus],
+    () => ({ hydrated, lang, setLang, result, processDocument, setPlan, reset, judgeRuns, addJudgeRun }),
+    [hydrated, lang, setLang, result, processDocument, setPlan, reset, judgeRuns, addJudgeRun],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

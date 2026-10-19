@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { CalendarDays, ClipboardList, Printer, ShieldQuestion } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CalendarDays, ClipboardList, Copy, Check, Printer, ShieldQuestion } from "lucide-react";
 import { PageShell } from "@/components/ui";
 import EmptyState from "@/components/EmptyState";
 import VerifiedBanner from "@/components/VerifiedBanner";
@@ -76,6 +76,7 @@ function planToSpeechText(plan: CarePlan, lang: "en" | "te"): string {
 
 export default function PlanPage() {
   const { result, hydrated, lang } = useCareBridge();
+  const [copied, setCopied] = useState(false);
 
   const sevenDay = useMemo(() => {
     if (!result) return null;
@@ -115,6 +116,22 @@ export default function PlanPage() {
       body={`From: ${result.sourceName} · ${plan.medications.length} medicines · ${plan.followUps.length} follow-up(s) · ${plan.warnings.length} warning sign(s)`}
       actions={
         <>
+          <button
+            type="button"
+            className="cb-btn cb-btn-ghost cb-btn-sm"
+            onClick={() => {
+              void navigator.clipboard
+                ?.writeText(planToSpeechText(plan, lang))
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1600);
+                });
+            }}
+            aria-label="Copy the full care plan as text"
+          >
+            {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+            {copied ? "Copied" : "Copy plan"}
+          </button>
           <ListenButton getText={() => planToSpeechText(plan, lang)} />
           <Link href="/print" className="cb-btn cb-btn-ghost cb-btn-sm">
             <Printer size={14} aria-hidden="true" />
@@ -143,6 +160,59 @@ export default function PlanPage() {
 
       <div className="space-y-5">
         <PlanWhatHappened plan={plan} />
+
+        {/* clinical picture (symptoms / history / tests / allergies) — from source analysis */}
+        {(extraction.provider === "gemini" &&
+          ((extraction.symptoms?.length ?? 0) > 0 ||
+            (extraction.medicalHistory?.length ?? 0) > 0 ||
+            (extraction.testResults?.length ?? 0) > 0 ||
+            (extraction.allergies?.length ?? 0) > 0)) ? (
+          <section className="cb-card p-6" aria-labelledby="ph-clin">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-3 text-white"><ClipboardList size={17} aria-hidden="true" /></span>
+              <h2 id="ph-clin" className="font-display text-xl font-semibold text-navy">From your document</h2>
+            </div>
+            <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {(extraction.symptoms?.length ?? 0) > 0 ? (
+                <div>
+                  <p className="cb-eyebrow mb-2">Symptoms noted</p>
+                  <ul className="space-y-1.5 text-[0.9rem]">{extraction.symptoms!.map((s, i) => <li key={i} className="rounded-lg bg-ivory px-3 py-1.5">{s}</li>)}</ul>
+                </div>
+              ) : null}
+              {(extraction.medicalHistory?.length ?? 0) > 0 ? (
+                <div>
+                  <p className="cb-eyebrow mb-2">Relevant history</p>
+                  <ul className="space-y-1.5 text-[0.9rem]">{extraction.medicalHistory!.map((s, i) => <li key={i} className="rounded-lg bg-ivory px-3 py-1.5">{s}</li>)}</ul>
+                </div>
+              ) : null}
+              {(extraction.allergies?.length ?? 0) > 0 ? (
+                <div>
+                  <p className="cb-eyebrow mb-2">Allergies &amp; precautions</p>
+                  <ul className="space-y-1.5 text-[0.9rem]">
+                    {extraction.allergies!.map((s, i) => (
+                      <li key={i} className="rounded-lg border border-alert/30 bg-alert-soft/60 px-3 py-1.5 font-semibold text-alert-deep">{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {(extraction.testResults?.length ?? 0) > 0 ? (
+                <div>
+                  <p className="cb-eyebrow mb-2">Test results (with units)</p>
+                  <ul className="space-y-1.5 text-[0.9rem]">
+                    {extraction.testResults!.map((t) => (
+                      <li key={t.id} className="rounded-lg bg-ivory px-3 py-1.5">
+                        <span className="font-semibold text-navy">{t.name}: </span>
+                        <span className="doc-font">{t.value ?? "?"}{t.unit ? ` ${t.unit}` : ""}</span>
+                        {t.referenceRange ? <span className="text-[0.78rem] text-mist"> (ref {t.referenceRange})</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
         <PlanMedicines plan={plan} />
 
         {/* seven-day view — only where frequency AND duration are both stated */}

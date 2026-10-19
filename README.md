@@ -8,6 +8,21 @@ A hackathon prototype that turns hospital discharge summaries into clear, patien
 
 ---
 
+## What was fixed (root-cause report)
+
+1. **“Could not process” on PDF upload/analysis.**
+   - Root cause A: the code imported `pdf-parse/lib/pdf-parse.js` (the v1 API). The installed package is **pdf-parse v2.4.5**, whose exports no longer include that subpath — the import threw at runtime, was swallowed by a `catch`, and the route fell through to a failure path. Fixed with the real v2 API (`new PDFParse({ data }).getText()`) in a shared helper (`src/lib/carebridge/pdf-text.ts`), used by both `/api/upload` and `/api/analyze`.
+   - Root cause B: pdf-parse v2 (pdfjs) and `@google/genai` break when bundled into a route handler. Fixed via `serverExternalPackages` in `next.config.ts`.
+   - Root cause C: nothing actually sent the document to Gemini. A real analysis pipeline now exists: `/api/analyze` validates the input, sends **actual PDF bytes** (multimodal — scanned PDFs are read visually where practical and flagged) or the **full text** to Gemini via the official `@google/genai` SDK with structured output, then validates the schema and **verifies the output against the source** (evidence quotes must exist verbatim; invented units/times are flagged) before anything is shown.
+
+2. **Vercel deployment: `Error: DATABASE_URL is required` / `Failed to collect page data for /api/health`.**
+   - Root cause: `src/db/index.ts` threw at module-import time when `DATABASE_URL` was unset. During Vercel's static "collect page data" step the health route was imported and crashed the build.
+   - Fix: the database is optional in CareBridge. The pool is now created lazily on first use (`getDb()`, `isDatabaseConfigured()`), and `/api/health` reports `database: "not_configured"` instead of throwing. **No database env var is needed to deploy.** If you want one anyway, set a real `DATABASE_URL` (e.g. Neon/Railway Postgres) as an encrypted env var — never commit it.
+
+3. **Gemini 400/404 robustness.** Invalid `HARM_CATEGORY_MEDICAL` category was removed; thinking-token budget is disabled so the JSON answer isn't truncated; a model fallback chain handles retired/rate-limited models (`GEMINI_MODEL` first, then `gemini-3.5-flash` → `gemini-3-flash-preview` → `gemini-2.5-flash`); malformed-JSON responses get one repair attempt before an honest failure.
+
+---
+
 ## Quick start (demo mode — no API key needed)
 
 ```bash
@@ -115,6 +130,25 @@ Live suite: `npx tsx scripts/live-probe.ts http://localhost:3000` — executed a
 | 9 | Document switch isolates context | ✅ doc-key based reset; corpus separation verified |
 | 10 | Mobile + keyboard usability | ⚠️ manual — full-screen sheet < 640px, Enter-to-send, Shift+Enter newline, Escape closes, focus-visible rings (no automated runner) |
 
-## Deploy notes
+## Deploy notes (Vercel)
 
-Production build: `npm run build && npm start`. CareBridge does not use a database. For live AI mode, set `GEMINI_API_KEY` in your deployment's environment variables (server-side).
+1. Push the repo. **No database is required** — do not set a placeholder `DATABASE_URL`.
+2. In **Project → Settings → Environment Variables**, add (server-side, all environments):
+   - `GEMINI_API_KEY` = your key (from https://aistudio.google.com/apikey)
+   - `GEMINI_MODEL` = `gemini-3.5-flash` (optional; sensible fallbacks are built in)
+3. Redeploy. `/api/health` should return `{"ok":true,"database":"not_configured"}`.
+4. Limits, stated honestly: file uploads are capped at **2 MB** (comfortable inside Vercel's request-payload limit); larger documents fail early with a clear message rather than a cryptic 413 from the platform. Route execution budget is set with `export const maxDuration = 120` — extend on paid plans if you analyse very large scans.
+5. Optional: to actually use a database, create a real Postgres instance and set `DATABASE_URL` as an encrypted env var. Do not commit `.env`.
+
+Production build: `npm run build && npm start`.
+
+## Testing
+
+```bash
+npx tsx scripts/selftest.ts            # deterministic engine + evaluator checks
+npx tsx scripts/assistant-tests.ts     # assistant logic (guards, faithfulness, TE)
+npx tsx scripts/live-probe.ts http://localhost:3000      # live Gemini chat checks
+npx tsx scripts/analyze-tests.ts http://localhost:3000   # live Gemini analysis checks (incl. real PDF)
+```
+
+Latest run (all executed against the real API): every suite passed, including real PDF extraction with preserved `40 mg` / `1 g/10 ml` strengths, HbA1c `8.2%` with units, `09:15 AM` follow-up time, Telugu renderings, honest rejection of gibberish/encrypted/corrupt/oversized inputs.

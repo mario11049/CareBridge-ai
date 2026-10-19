@@ -65,6 +65,15 @@ function FridgeSheet({ plan, extraction, report, lang, sourceName }: { plan: Car
         </p>
       </section>
 
+      {(extraction.allergies?.length ?? 0) > 0 ? (
+        <section className="mt-3 rounded-lg border-2 border-alert/70 bg-alert-soft px-3 py-2 print-avoid-break">
+          <p className="text-[9.5pt] font-extrabold uppercase tracking-wide text-alert-deep">
+            {te ? "అలర్జీలు / జాగ్రత్తలు" : "Allergies / precautions"}
+          </p>
+          <p className="mt-0.5 text-[9.5pt] font-bold text-alert-deep">{extraction.allergies!.join(" · ")}</p>
+        </section>
+      ) : null}
+
       {/* medicines */}
       <section className="mt-4 print-avoid-break">
         <h2 className="text-[10pt] font-extrabold uppercase tracking-[0.14em] text-navy">{L.meds}</h2>
@@ -183,7 +192,10 @@ function FridgeSheet({ plan, extraction, report, lang, sourceName }: { plan: Car
 export default function PrintPage() {
   const { result, hydrated, lang } = useCareBridge();
   const [shown, setShown] = useState(false);
-  useEffect(() => setShown(true), []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   if (!hydrated) return null;
   if (!result) {

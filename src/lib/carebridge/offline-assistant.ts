@@ -7,15 +7,6 @@ import type { AssistantContext, AssistantReply } from "./assistant";
 import { PLAN_TE, durationTe, doseTe, FREQ_TE, ROUTE_TE, teLookup, INSTRUCTION_TE, WARNING_ACTION_TE, WARNING_SIGN_TE, SPECIAL_TE, DIAGNOSIS_TE } from "./telugu";
 import { normalize } from "./util";
 
-const kb = (en: string, te: string, partial: Partial<AssistantReply> = {}): AssistantReply => ({
-  answer: en,
-  language: "en",
-  supportingSourceExcerpt: partial.supportingSourceExcerpt ?? null,
-  uncertaintyStatus: partial.uncertaintyStatus ?? "confident",
-  needsHumanReview: partial.needsHumanReview ?? false,
-  responseType: partial.responseType ?? "general",
-});
-
 type Intent = "meds" | "frequency" | "duration" | "follow_up" | "warnings" | "diet_activity" | "telugu" | "term" | "greeting" | "how_it_works" | "unknown";
 
 export function detectIntent(q: string): Intent {

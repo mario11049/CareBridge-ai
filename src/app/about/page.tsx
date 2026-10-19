@@ -65,7 +65,7 @@ export default function AboutPage() {
             { icon: Server, t: "Extract", d: "A rule-based parser reads sections (medicines, follow-ups, warning signs, diet, activity). Unparseable content is preserved verbatim and flagged — never dropped, never guessed. Missing fields become explicit nulls." },
             { icon: Eye, t: "Simplify & translate", d: "Template-grounded plain language copies values verbatim. Telugu rendering uses a verified phrase dictionary; gaps are preserved in English and flagged for review." },
             { icon: CheckCircle2, t: "Validate", d: "The faithfulness engine compares every critical field between source and plan exactly (meaning-safe normalisation only). Mismatches, omissions and unsupported additions block the verified state." },
-            { icon: KeyRound, t: "Live mode (optional)", d: "When a server-side GEMINI_API_KEY is configured, Gemini can propose structured JSON extraction — always re-validated by the deterministic engine. No key in the browser, ever." },
+            { icon: KeyRound, t: "Live mode (optional)", d: "When a server-side AI key is configured, the AI engine can propose structured JSON extraction — always re-validated by the deterministic engine. No key in the browser, ever." },
           ].map((s) => (
             <div key={s.t} className="rounded-2xl bg-ivory p-4">
               <s.icon size={18} className="text-med" aria-hidden="true" />
@@ -94,7 +94,7 @@ export default function AboutPage() {
             <KeyRound size={16} className="text-navy" aria-hidden="true" />
             <p className="mt-2 text-sm font-bold text-navy">Keys stay server-side</p>
             <p className="mt-1 text-[0.82rem] leading-relaxed text-mist">
-              GEMINI_API_KEY is read only inside the server route, never bundled to the browser, never logged. Users are never asked to paste a key into the UI.
+              The AI key is read only inside the server route, never bundled to the browser, never logged. Users are never asked to paste a key into the UI.
             </p>
           </div>
           <div className="rounded-2xl bg-ivory p-4">

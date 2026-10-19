@@ -26,6 +26,10 @@ export interface Medication {
   prescribedTimes: string[] | null; // only when the source states explicit times
   flags: string[];
   evidence: Evidence;
+  // provider-supplied (Gemini) renderings — used verbatim by the planner
+  plainEn?: string | null;
+  plainTe?: string | null;
+  provider?: "deterministic" | "gemini";
 }
 
 export interface FollowUp {
@@ -38,6 +42,9 @@ export interface FollowUp {
   preparation: string | null;
   flags: string[];
   evidence: Evidence;
+  /** provider-supplied Telugu rendering of the whole follow-up summary */
+  te?: string | null;
+  provider?: "deterministic" | "gemini";
 }
 
 export interface WarningSign {
@@ -47,6 +54,9 @@ export interface WarningSign {
   action: string | null;
   flags: string[];
   evidence: Evidence;
+  signTe?: string | null;
+  actionTe?: string | null;
+  provider?: "deterministic" | "gemini";
 }
 
 export type InstructionCategory = "diet" | "activity" | "home_care" | "other";
@@ -58,6 +68,8 @@ export interface InstructionItem {
   text: string;
   flags: string[];
   evidence: Evidence;
+  /** provider-supplied Telugu rendering */
+  te?: string | null;
 }
 
 export interface UnclearItem {
@@ -77,6 +89,16 @@ export interface HeaderInfo {
   emergencyContact: string | null;
 }
 
+export interface TestResult {
+  id: string;
+  name: string;
+  value: string | null;
+  unit: string | null;
+  referenceRange: string | null;
+  note: string | null;
+  evidence: Evidence | null;
+}
+
 export interface Extraction {
   header: HeaderInfo;
   medications: Medication[];
@@ -90,6 +112,15 @@ export interface Extraction {
     synthetic: boolean;
     sourceLineCount: number;
   };
+  // ---- optional fields filled by the Gemini analysis pipeline (never by the deterministic parser) ----
+  provider?: "deterministic" | "gemini";
+  symptoms?: string[];
+  medicalHistory?: string[];
+  testResults?: TestResult[];
+  allergies?: string[];
+  precautions?: string[];
+  diagnosisPlainEn?: string | null;
+  diagnosisPlainTe?: string | null;
 }
 
 // ---------------- Care plan ----------------
@@ -134,6 +165,8 @@ export interface PlanFollowUp {
   preparation: string | null;
   titleTe: string | null;
   prepTe: string | null;
+  /** provider-supplied Telugu summary of the whole appointment */
+  summaryTe?: string | null;
   teReview: boolean;
   evidence: Evidence | null;
 }

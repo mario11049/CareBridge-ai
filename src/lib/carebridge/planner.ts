@@ -8,7 +8,6 @@
 import type { CarePlan, Extraction, Medication, PlanFollowUp, PlanInstruction, PlanMed, PlanQuestion, PlanWarning } from "./types";
 import {
   DIAGNOSIS_TE,
-  DOSE_UNIT_TE,
   FOLLOWUP_PREP_TE,
   FOLLOWUP_TITLE_TE,
   FREQ_TE,
@@ -22,7 +21,7 @@ import {
   doseTe,
   durationTe,
 } from "./telugu";
-import { NOT_STATED, isBlank, normalize, uid } from "./util";
+import { isBlank, normalize, uid } from "./util";
 
 function verbFor(route: string | null): string {
   const r = (route ?? "").toLowerCase();
@@ -114,8 +113,8 @@ export function buildPlan(extraction: Extraction): CarePlan {
     const m = group[0];
     used.add(m.id);
     const conflict = group.length > 1;
-    const howEn = composeHowEn(m, conflict ? group : undefined);
-    const howTe = composeHowTe(m, conflict ? group : undefined);
+    const howEn = m.provider === "gemini" && m.plainEn && !conflict ? { en: m.plainEn, conflict: false } : composeHowEn(m, conflict ? group : undefined);
+    const howTe = m.provider === "gemini" && m.plainTe && !conflict ? { te: m.plainTe, review: false } : composeHowTe(m, conflict ? group : undefined);
     const specialEn = conflict
       ? group
           .map((g) => g.special)
@@ -151,7 +150,7 @@ export function buildPlan(extraction: Extraction): CarePlan {
   });
 
   const home: PlanInstruction[] = extraction.instructions.map((ins, i) => {
-    const te = teLookup(INSTRUCTION_TE, ins.text);
+    const te = ins.te ?? teLookup(INSTRUCTION_TE, ins.text);
     return {
       id: uid("PI", i + 1),
       sourceId: ins.id,
@@ -166,6 +165,7 @@ export function buildPlan(extraction: Extraction): CarePlan {
   const followUps: PlanFollowUp[] = extraction.followUps.map((f, i) => {
     const titleTe = teLookup(FOLLOWUP_TITLE_TE, f.title);
     const prepTe = teLookup(FOLLOWUP_PREP_TE, f.preparation);
+    const summaryTe = f.te ?? null;
     return {
       id: uid("PF", i + 1),
       sourceId: f.id,
@@ -176,14 +176,15 @@ export function buildPlan(extraction: Extraction): CarePlan {
       preparation: f.preparation,
       titleTe,
       prepTe,
-      teReview: (f.title != null && titleTe == null) || (f.preparation != null && prepTe == null),
+      summaryTe,
+      teReview: summaryTe == null && ((f.title != null && titleTe == null) || (f.preparation != null && prepTe == null)),
       evidence: f.evidence,
     };
   });
 
   const warnings: PlanWarning[] = extraction.warningSigns.map((w, i) => {
-    const signTe = teLookup(WARNING_SIGN_TE, w.sign);
-    const actionTe = teLookup(WARNING_ACTION_TE, w.action);
+    const signTe = w.signTe ?? teLookup(WARNING_SIGN_TE, w.sign);
+    const actionTe = w.actionTe ?? teLookup(WARNING_ACTION_TE, w.action);
     return {
       id: uid("PW", i + 1),
       sourceId: w.id,
@@ -251,7 +252,7 @@ export function buildPlan(extraction: Extraction): CarePlan {
     qPush(`Please confirm: ${u.text}`, `దయచేసి నిర్ధారించండి: ${u.text}`, "unclear", true);
   }
 
-  const diagTe = teLookup(DIAGNOSIS_TE, extraction.header.diagnosis);
+  const diagTe = extraction.diagnosisPlainTe ?? teLookup(DIAGNOSIS_TE, extraction.header.diagnosis);
   const teReviewCount =
     meds.reduce((a, m) => a + (m.howTeReview ? 1 : 0) + (m.specialTeReview ? 1 : 0), 0) +
     home.filter((h) => h.teReview).length +
@@ -264,7 +265,7 @@ export function buildPlan(extraction: Extraction): CarePlan {
     id: `PLAN-${Date.now().toString(36)}`,
     createdAt: new Date().toISOString(),
     whatHappened: {
-      en: extraction.header.diagnosis,
+      en: extraction.diagnosisPlainEn ?? extraction.header.diagnosis,
       te: diagTe,
       teReview: diagTe == null && extraction.header.diagnosis != null,
       evidence: extraction.header.diagnosis
@@ -280,6 +281,3 @@ export function buildPlan(extraction: Extraction): CarePlan {
   };
 }
 
-// Telugu glue for composed sentence pieces (exported for UI reuse)
-export const TE_GLUE = DOSE_UNIT_TE;
-export const TE_NOT_STATED = NOT_STATED;

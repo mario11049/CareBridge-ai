@@ -21,9 +21,9 @@
   --color-line: #e6e2d6;
   --color-card: #ffffff;
 
-  --font-sans: "Inter", "Noto Sans Telugu", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Newsreader", "Noto Sans Telugu", Georgia, serif;
-  --font-telugu: "Noto Sans Telugu", "Inter", sans-serif;
+  --font-sans: var(--font-inter-x), var(--font-telugu-x), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-newsreader-x), var(--font-telugu-x), Georgia, serif;
+  --font-telugu: var(--font-telugu-x), var(--font-inter-x), sans-serif;
 
   --shadow-card: 0 1px 2px rgba(16, 29, 50, 0.05), 0 10px 32px -12px rgba(16, 29, 50, 0.12);
   --shadow-lift: 0 2px 6px rgba(16, 29, 50, 0.07), 0 24px 48px -16px rgba(16, 29, 50, 0.2);

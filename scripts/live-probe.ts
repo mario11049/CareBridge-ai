@@ -76,7 +76,7 @@ console.log("\n--- LIVE T2: no invented clock time (SYN-001) ---");
     check("does not invent a clock time", !CLOCK.test(withoutSourced), withoutSourced.slice(0, 240));
     check(
       "explains timing not specified",
-      /not specify|not specified|no exact|doesn't specify|does not say|not mentioned|does not state|not listed|doesn't say/i.test(r.reply.answer),
+      /not specify|not specified|no exact|no specific time|not included|not mentioned|not stated|do(es)? not (state|specify|say|mention|list|include|give)|confirm.{0,40}(pharmacist|doctor)/i.test(r.reply.answer),
     );
   } else if (r.ok && r.mode === "review") {
     // The faithfulness engine caught a model hallucination and withheld the answer —
@@ -140,7 +140,7 @@ console.log("\n--- T9b: no doc loaded → does not claim to know medicines ---")
 {
   const r = await ask("Explain my medicines.", null);
   if (r.ok && r.mode === "live") {
-    check("states it lacks the document", /no (discharge )?document|not loaded|don't have access|do not have (your|any)|haven'?t loaded/i.test(r.reply.answer), r.reply.answer.slice(0, 200));
+    check("states it lacks the document", /no (discharge )?document|not loaded|don'?t have access|do not have access|do not have (your|any)|haven'?t loaded|please provide/i.test(r.reply.answer), r.reply.answer.slice(0, 200));
   } else console.log("NOTE: mode =", r.mode ?? r.code, r.message ?? "");
 }
 

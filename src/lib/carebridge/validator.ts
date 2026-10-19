@@ -57,6 +57,8 @@ export function validatePlan(extraction: Extraction, plan: CarePlan): Validation
     actionReview?: string;
     evidence?: { line: number | null; section: string; snippet: string } | null;
     optional?: boolean;
+    /** an additional accepted plan value (e.g. a plain-language rendering of the same field) */
+    alsoAccept?: string | null;
   }) => {
     const { group, field, label, source, plan } = opts;
     const critical = opts.critical !== false;
@@ -74,7 +76,7 @@ export function validatePlan(extraction: Extraction, plan: CarePlan): Validation
     } else if (opts.flagged) {
       status = "needs_review";
       action = opts.actionReview ?? "Source is ambiguous/conflicting for this field — human review required.";
-    } else if (exactValue(source, plan)) {
+    } else if (exactValue(source, plan) || (opts.alsoAccept != null && exactValue(opts.alsoAccept, plan))) {
       status = "matched";
       action = opts.actionMatched ?? "No action needed.";
     } else {
@@ -97,13 +99,19 @@ export function validatePlan(extraction: Extraction, plan: CarePlan): Validation
   };
 
   // ---- diagnosis ----
+  // The plan may show either the verbatim diagnosis or the validated
+  // plain-language rendering of it — both preserve meaning.
   cmp({
     group: "What happened",
     field: "diagnosis",
     label: "Reason for admission (as written)",
     source: extraction.header.diagnosis,
     plan: plan.whatHappened.en,
+    alsoAccept: extraction.diagnosisPlainEn ?? null,
     actionReview: "No diagnosis found in source — plan must not invent one.",
+    actionMatched: extraction.diagnosisPlainEn
+      ? "Diagnosis preserved; plain-language explanation shown alongside it."
+      : "No action needed.",
   });
 
   // ---- medications ----

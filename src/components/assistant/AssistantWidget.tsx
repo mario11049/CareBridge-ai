@@ -78,38 +78,41 @@ export default function AssistantWidget() {
     };
   }, []);
 
-  // ---- document-change isolation + hydration ----
+  // ---- document-change isolation + hydration (scheduled to avoid synchronous setState in the effect body) ----
   useEffect(() => {
     if (!hydrated) return;
-    if (docKeyRef.current === null) {
-      // first hydration — try to restore a session matching current doc
-      try {
-        const raw = sessionStorage.getItem(SS_KEY);
-        if (raw) {
-          const saved = JSON.parse(raw) as { docKey: string | null; msgs: ChatMsg[] };
-          if (saved.docKey === docKey && Array.isArray(saved.msgs) && saved.msgs.length) {
-            setMsgs(saved.msgs.slice(-50));
-            docKeyRef.current = docKey;
-            return;
+    const id = requestAnimationFrame(() => {
+      if (docKeyRef.current === null) {
+        // first hydration — try to restore a session matching current doc
+        try {
+          const raw = sessionStorage.getItem(SS_KEY);
+          if (raw) {
+            const saved = JSON.parse(raw) as { docKey: string | null; msgs: ChatMsg[] };
+            if (saved.docKey === docKey && Array.isArray(saved.msgs) && saved.msgs.length) {
+              setMsgs(saved.msgs.slice(-50));
+              docKeyRef.current = docKey;
+              return;
+            }
           }
+        } catch {
+          /* fresh start */
         }
-      } catch {
-        /* fresh start */
+        docKeyRef.current = docKey;
+        setMsgs([]);
+        return;
       }
-      docKeyRef.current = docKey;
-      setMsgs([]);
-      return;
-    }
-    if (docKeyRef.current !== docKey) {
-      // document changed — isolate context, never mix two documents
-      docKeyRef.current = docKey;
-      setMsgs([]);
-      try {
-        sessionStorage.removeItem(SS_KEY);
-      } catch {
-        /* noop */
+      if (docKeyRef.current !== docKey) {
+        // document changed — isolate context, never mix two documents
+        docKeyRef.current = docKey;
+        setMsgs([]);
+        try {
+          sessionStorage.removeItem(SS_KEY);
+        } catch {
+          /* noop */
+        }
       }
-    }
+    });
+    return () => cancelAnimationFrame(id);
   }, [docKey, hydrated]);
 
   // persist conversation (size-capped; medical content stays in sessionStorage only)
@@ -327,7 +330,7 @@ export default function AssistantWidget() {
                 mode === "checking" && "bg-white/15 text-white/80",
               )}
             >
-              {mode === "live" ? "Gemini · live" : mode === "offline" ? "offline demo" : "checking…"}
+              {mode === "live" ? "AI · live" : mode === "offline" ? "offline demo" : "checking…"}
             </span>
             <LangToggle compact />
             <button type="button" onClick={clearChat} aria-label="Clear conversation" title="Clear conversation" className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white">
@@ -415,7 +418,7 @@ export default function AssistantWidget() {
                     {/* mode tags */}
                     <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                       {m.mode === "live" ? (
-                        <span className="cb-pill !px-2 !py-0.5 !text-[0.58rem] bg-med-soft text-med-deep">Gemini · faithfulness-checked</span>
+                        <span className="cb-pill !px-2 !py-0.5 !text-[0.58rem] bg-med-soft text-med-deep">AI · faithfulness-checked</span>
                       ) : null}
                       {m.mode === "offline" ? (
                         <span className="cb-pill !px-2 !py-0.5 !text-[0.58rem] bg-ivory-2 text-mist">Offline answer · from validated plan data, not AI</span>

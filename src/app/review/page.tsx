@@ -107,7 +107,78 @@ export default function ReviewPage() {
             ))}
           </div>
         </div>
+        {e.provider === "gemini" ? (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[0.68rem] font-bold uppercase tracking-wider text-med-deep">
+            analysed by the CareBridge AI engine · verified in application code
+          </p>
+        ) : null}
       </div>
+
+      {/* symptoms, history, test results, allergies (AI analysis) */}
+      {e.provider === "gemini" &&
+      ((e.symptoms?.length ?? 0) > 0 || (e.medicalHistory?.length ?? 0) > 0 || (e.testResults?.length ?? 0) > 0 || (e.allergies?.length ?? 0) > 0) ? (
+        <section className="cb-card mb-6 p-5">
+          <h2 className="text-[1.02rem] font-bold text-navy">Clinical picture from the document</h2>
+          <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {(e.symptoms?.length ?? 0) > 0 ? (
+              <div>
+                <p className="cb-eyebrow mb-2">Symptoms noted</p>
+                <ul className="space-y-1.5">
+                  {e.symptoms!.map((s, i) => (
+                    <li key={i} className="rounded-lg bg-ivory px-3 py-2 text-[0.85rem] text-ink/85">{s}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {(e.medicalHistory?.length ?? 0) > 0 ? (
+              <div>
+                <p className="cb-eyebrow mb-2">Relevant history</p>
+                <ul className="space-y-1.5">
+                  {e.medicalHistory!.map((s, i) => (
+                    <li key={i} className="rounded-lg bg-ivory px-3 py-2 text-[0.85rem] text-ink/85">{s}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {(e.allergies?.length ?? 0) > 0 ? (
+              <div>
+                <p className="cb-eyebrow mb-2">Allergies &amp; precautions</p>
+                <ul className="space-y-1.5">
+                  {e.allergies!.map((s, i) => (
+                    <li key={i} className="rounded-lg border border-alert/30 bg-alert-soft/60 px-3 py-2 text-[0.85rem] font-semibold text-alert-deep">{s}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              e.provider === "gemini" ? (
+                <div>
+                  <p className="cb-eyebrow mb-2">Allergies</p>
+                  <p className="rounded-lg bg-ivory px-3 py-2 text-[0.85rem] text-mist">No allergies documented in the uploaded document.</p>
+                </div>
+              ) : null
+            )}
+            {(e.testResults?.length ?? 0) > 0 ? (
+              <div className="md:col-span-2 xl:col-span-1">
+                <p className="cb-eyebrow mb-2">Test results</p>
+                <ul className="space-y-1.5">
+                  {e.testResults!.map((t) => (
+                    <li key={t.id} className="rounded-lg bg-ivory px-3 py-2 text-[0.85rem]">
+                      <span className="font-semibold text-navy">{t.name}</span>
+                      <span className="doc-font ml-2 text-navy">
+                        {t.value ?? "?"}
+                        {t.unit ? ` ${t.unit}` : ""}
+                      </span>
+                      {t.referenceRange ? <span className="ml-1 text-[0.75rem] text-mist">(ref {t.referenceRange})</span> : null}
+                      {t.note ? <p className="text-[0.78rem] text-mist">{t.note}</p> : null}
+                      {t.evidence ? <div className="mt-1"><EvidenceChip evidence={t.evidence} /></div> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {/* medications */}
       <section className="cb-card mb-6 overflow-hidden">

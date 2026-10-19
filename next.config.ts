@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // pdf-parse must run as a plain Node module on the server, not be bundled.
-  serverExternalPackages: ["pdf-parse"],
+  // keep these as real node_modules at runtime — they ship worker assets and
+  // native-ish code that breaks when bundled into a route handler
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@google/genai"],
 };
 
 export default nextConfig;

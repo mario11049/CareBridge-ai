@@ -121,6 +121,7 @@ function SetView({ r, name }: { r: SetReport; name: string }) {
 export default function EvaluationPage() {
   const [stamp, setStamp] = useState(0);
   const [tab, setTab] = useState<"held-out" | "development">("held-out");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- stamp intentionally forces a re-run
   const report = useMemo(() => runEvaluation(), [stamp]);
 
   const download = () => {

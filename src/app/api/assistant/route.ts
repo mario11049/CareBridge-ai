@@ -24,10 +24,12 @@ import {
   type AssistantReply,
 } from "@/lib/carebridge/assistant";
 import { checkAnswerFaithfulness, validateReplySchema } from "@/lib/carebridge/answercheck";
+import { resolveModelChain } from "@/lib/carebridge/gemini-analysis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+
+const NO_STORE = { "Cache-Control": "no-store" };
 
 const TIMEOUT_MS = 25_000;
 
@@ -51,7 +53,7 @@ function rateLimited(key: string): boolean {
 // ---- capability probe (no secrets returned) ----
 export async function GET() {
   const configured = Boolean(process.env.GEMINI_API_KEY);
-  return NextResponse.json({ configured });
+  return NextResponse.json({ configured }, { headers: NO_STORE });
 }
 
 const SYSTEM_PROMPT = [
@@ -131,7 +133,7 @@ interface ChatMessage {
 }
 
 function err(code: "no_key" | "invalid_key" | "quota" | "offline" | "timeout" | "bad_response" | "blocked" | "bad_request", message: string, status = 200) {
-  return NextResponse.json({ ok: false, code, message }, { status });
+  return NextResponse.json({ ok: false, code, message }, { status, headers: NO_STORE });
 }
 
 export async function POST(req: Request) {
@@ -175,7 +177,7 @@ export async function POST(req: Request) {
       needsHumanReview: true,
       responseType: "safety_refusal",
     };
-    return NextResponse.json({ ok: true, mode: "guard", reply });
+    return NextResponse.json({ ok: true, mode: "guard", reply }, { headers: NO_STORE });
   }
 
   // ---- key check ----
@@ -183,16 +185,21 @@ export async function POST(req: Request) {
   if (!apiKey) {
     return err(
       "no_key",
-      "Live AI is not configured on this deployment (GEMINI_API_KEY missing). You can still use the offline assistant, which answers only from the validated plan data.",
+      "Live AI is not configured on this deployment. You can still use the offline assistant, which answers only from the validated plan data.",
     );
   }
   // Model is configured via env; a short, explicit fallback chain handles
   // models being rate-limited or retired (observed in practice with this API).
   // The answering model is reported back in the payload for transparency.
   const configuredModel = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-  const MODEL_CHAIN = [configuredModel, "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash"].filter(
-    (m, i, a) => a.indexOf(m) === i,
-  );
+  let MODEL_CHAIN: string[];
+  try {
+    MODEL_CHAIN = await resolveModelChain(apiKey);
+  } catch {
+    MODEL_CHAIN = [configuredModel, "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-2.5-flash"].filter(
+      (m, i, a) => a.indexOf(m) === i,
+    );
+  }
 
   // ---- build context block (minimum necessary) ----
   const contextBlock = context
@@ -253,7 +260,7 @@ export async function POST(req: Request) {
         break;
       }
       if (attempt.status === 401 || attempt.status === 403) {
-        return err("invalid_key", "The live AI service rejected the configured credentials. Please check the server-side Gemini configuration.", 200);
+        return err("invalid_key", "The live AI service rejected the configured credentials. Please check the server-side AI configuration.", 200);
       }
       if (attempt.status === 400) {
         return err("invalid_key", "The live AI service rejected the request format. Please report this to the developers.", 200);
@@ -265,7 +272,7 @@ export async function POST(req: Request) {
       if (lastQuotaHit) {
         return err("quota", "The live AI service is rate-limited on all configured models right now. Please try again in a minute — the offline assistant remains available.", 200);
       }
-      return err("invalid_key", "None of the configured Gemini models are available for this key. Update GEMINI_MODEL server-side.", 200);
+      return err("invalid_key", "None of the configured AI models are currently available for this key. Update the server-side model configuration.", 200);
     }
 
     const data = (await res.json()) as {
@@ -309,7 +316,7 @@ export async function POST(req: Request) {
           needsHumanReview: true,
           responseType: "error",
         } satisfies AssistantReply,
-      });
+      }, { headers: NO_STORE });
     }
 
     // fabricated source-reference defense: excerpt must exist in the source text
@@ -335,7 +342,7 @@ export async function POST(req: Request) {
       responseType: (parsed.response_type as AssistantReply["responseType"]) ?? "general",
     };
 
-    return NextResponse.json({ ok: true, mode: "live", reply });
+    return NextResponse.json({ ok: true, mode: "live", reply }, { headers: NO_STORE });
   } catch {
     return err("timeout", "The live AI service did not respond in time (network or timeout). Please try again — the offline assistant remains available.", 200);
   } finally {

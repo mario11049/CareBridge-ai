@@ -9,6 +9,8 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NO_STORE = { "Cache-Control": "no-store" };
+
 const MAX_BYTES = 2 * 1024 * 1024;
 
 export async function POST(req: Request) {
@@ -16,14 +18,14 @@ export async function POST(req: Request) {
   try {
     form = await req.formData();
   } catch {
-    return NextResponse.json({ ok: false, error: "Could not read the uploaded form data." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Could not read the uploaded form data." }, { status: 400, headers: NO_STORE });
   }
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ ok: false, error: "No file was provided." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "No file was provided." }, { status: 400, headers: NO_STORE });
   }
   if (file.size === 0) {
-    return NextResponse.json({ ok: false, error: "The file is empty. Please choose a file with content." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "The file is empty. Please choose a file with content." }, { status: 400, headers: NO_STORE });
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json(
@@ -41,17 +43,14 @@ export async function POST(req: Request) {
     if (isTxt) {
       const text = await file.text();
       if (!text.trim()) {
-        return NextResponse.json({ ok: false, error: "The text file contains no readable text." }, { status: 400 });
+        return NextResponse.json({ ok: false, error: "The text file contains no readable text." }, { status: 400, headers: NO_STORE });
       }
-      return NextResponse.json({ ok: true, name, kind: "txt", text, pages: null });
+      return NextResponse.json({ ok: true, name, kind: "txt", text, pages: null }, { headers: NO_STORE });
     }
     if (isPdf) {
       const buf = Buffer.from(await file.arrayBuffer());
-      // dynamic import keeps the demo bundle lean; parsing happens server-side only
-      const mod = (await import("pdf-parse/lib/pdf-parse.js")) as unknown as {
-        default: (b: Buffer, o?: Record<string, unknown>) => Promise<{ text: string; numpages: number }>;
-      };
-      const result = await mod.default(buf, { max: 20 });
+      const { extractPdfText } = await import("@/lib/carebridge/pdf-text");
+      const result = await extractPdfText(buf);
       const text = (result.text ?? "").trim();
       if (!text) {
         return NextResponse.json(
@@ -63,7 +62,7 @@ export async function POST(req: Request) {
           { status: 422 },
         );
       }
-      return NextResponse.json({ ok: true, name, kind: "pdf", text, pages: result.numpages ?? null });
+      return NextResponse.json({ ok: true, name, kind: "pdf", text, pages: result.pages ?? null }, { headers: NO_STORE });
     }
     return NextResponse.json(
       { ok: false, error: "Unsupported file type. Please upload a .txt or .pdf file, or paste the text directly." },

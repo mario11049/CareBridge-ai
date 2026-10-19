@@ -3,7 +3,7 @@
 import { AlertOctagon, CalendarClock, HelpCircle, Home, Pill, Stethoscope } from "lucide-react";
 import { useCareBridge } from "@/lib/store";
 import { T } from "@/components/T";
-import { PLAN_TE } from "@/lib/carebridge/telugu";
+import { PLAN_TE, durationTe } from "@/lib/carebridge/telugu";
 import type { CarePlan } from "@/lib/carebridge/types";
 
 const H = PLAN_TE.headings;
@@ -76,7 +76,7 @@ export function PlanMedicines({ plan, compact = false }: { plan: CarePlan; compa
                 <td>
                   {lang === "te" ? (
                     <span className="te font-semibold text-navy">
-                      {m.duration ? `${m.duration.replace(" days", " రోజులు").replace(" day", " రోజు").replace(" weeks", " వారాలు").replace(" week", " వారం").replace(" months", " నెలలు").replace(" month", " నెల")}` : "పేర్కొనలేదు"}
+                      {m.duration ? (durationTe(m.duration) ?? m.duration) : "పేర్కొనలేదు"}
                     </span>
                   ) : (
                     <span className="font-semibold text-navy">{m.duration ?? "Not stated"}</span>
@@ -146,6 +146,7 @@ export function PlanFollowUps({ plan }: { plan: CarePlan }) {
             <p className="font-bold text-navy">
               {lang === "te" && f.titleTe ? <span className="te">{f.titleTe}</span> : f.title ?? "Follow-up visit"}
             </p>
+            {lang === "te" && f.summaryTe ? <p className="te mt-1 text-[0.88rem] leading-relaxed text-ink/85">{f.summaryTe}</p> : null}
             <dl className="mt-2 grid gap-x-6 gap-y-1 text-[0.9rem] sm:grid-cols-[110px_1fr]">
               <dt className="text-mist">{lang === "te" ? <span className="te">తేదీ</span> : "Date"}</dt>
               <dd className="font-semibold text-navy">
